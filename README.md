@@ -1,6 +1,6 @@
-# 📜 小红书提词器 / Teleprompter
+# 📜 提词器 / Teleprompter
 
-简单好用的网页提词器，专为小红书、抖音等短视频拍摄设计。
+免费开源的网页提词器，自媒体博主拍视频必备。
 
 **在线使用 👉 https://jzocb.github.io/teleprompter/**
 
