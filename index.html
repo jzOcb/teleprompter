@@ -692,6 +692,9 @@
             allText = text;
             currentLineIndex = 0;
             
+            // 让输入框失去焦点，确保从头开始
+            document.getElementById('scriptText').blur();
+            
             // 设置文本
             textContent.innerHTML = text.split('\n').map((line, i) => 
                 line ? `<p style="margin: 0.5em 0;" data-line="${i}">${line}</p>` : '<p style="margin: 0.5em 0;">&nbsp;</p>'
@@ -704,9 +707,15 @@
                 textContent.classList.remove('mirrored');
             }
             
-            // 重置位置
+            // 重置位置 - 确保从第一行开始
             scrollPosition = window.innerHeight / 2;
             updateTransform();
+            
+            // 高亮第一行
+            setTimeout(() => {
+                const firstP = textContent.querySelector('p');
+                if (firstP) firstP.classList.add('current');
+            }, 100);
             
             // 设置控制栏
             if (scrollMode === 'voice') {
