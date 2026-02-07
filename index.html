@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>📜 小红书提词器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 设置面板 */
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            z-index: 100;
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .settings-panel.hidden {
+            transform: translateY(100%);
+        }
+        
+        .settings-panel h1 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #ff6b9d;
+        }
+        
+        .settings-panel h1 span {
+            font-size: 32px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ff6b9d;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            resize: vertical;
+            margin-bottom: 20px;
+        }
+        
+        textarea::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #ff6b9d;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(255,107,157,0.3);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #ff6b9d;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .value-display {
+            text-align: center;
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            margin-top: 5px;
+        }
+        
+        .toggle-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .toggle-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 20px;
+            border: 2px solid #ff6b9d;
+            background: transparent;
+            color: #fff;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .toggle-btn.active {
+            background: #ff6b9d;
+        }
+        
+        .start-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 22px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            border: none;
+            border-radius: 30px;
+            color: #fff;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(255,107,157,0.4);
+        }
+        
+        /* 提词器界面 */
+        .teleprompter {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            flex-direction: column;
+            background: #000;
+        }
+        
+        .teleprompter.active {
+            display: flex;
+        }
+        
+        .prompter-text {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .text-content {
+            text-align: center;
+            line-height: 1.8;
+            transition: transform 0.1s linear;
+        }
+        
+        .text-content.mirrored {
+            transform: scaleX(-1);
+        }
+        
+        /* 中心指示线 */
+        .center-line {
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 3px;
+            background: rgba(255,107,157,0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        /* 渐变遮罩 */
+        .fade-top, .fade-bottom {
+            position: fixed;
+            left: 0;
+            right: 0;
+            height: 100px;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        .fade-top {
+            top: 0;
+            background: linear-gradient(to bottom, #000 0%, transparent 100%);
+        }
+        
+        .fade-bottom {
+            bottom: 60px;
+            background: linear-gradient(to top, #000 0%, transparent 100%);
+        }
+        
+        /* 控制栏 */
+        .control-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 10px;
+            z-index: 20;
+        }
+        
+        .ctrl-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ctrl-btn.play {
+            width: 60px;
+            height: 60px;
+            background: #ff6b9d;
+            font-size: 28px;
+        }
+        
+        .speed-adjust {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .speed-adjust button {
+            width: 36px;
+            height: 36px;
+            border: 2px solid #ff6b9d;
+            background: transparent;
+            color: #fff;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        /* 倒计时 */
+        .countdown {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+            font-weight: bold;
+            color: #ff6b9d;
+            z-index: 200;
+        }
+        
+        .countdown.active {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <!-- 设置面板 -->
+    <div class="settings-panel" id="settingsPanel">
+        <h1><span>📜</span> 小红书提词器</h1>
+        
+        <textarea id="scriptText" placeholder="在这里粘贴你的文案...&#10;&#10;支持多段落，滚动播放时会自动居中显示。"></textarea>
+        
+        <div class="control-group">
+            <label>📏 字体大小</label>
+            <input type="range" id="fontSize" min="24" max="72" value="42">
+            <div class="value-display" id="fontSizeValue">42px</div>
+        </div>
+        
+        <div class="control-group">
+            <label>🚀 滚动速度</label>
+            <input type="range" id="scrollSpeed" min="10" max="100" value="40">
+            <div class="value-display" id="speedValue">40</div>
+        </div>
+        
+        <div class="control-group">
+            <label>⏱️ 开始倒计时</label>
+            <div class="toggle-group">
+                <button class="toggle-btn" data-countdown="0">无</button>
+                <button class="toggle-btn active" data-countdown="3">3秒</button>
+                <button class="toggle-btn" data-countdown="5">5秒</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>🪞 镜像模式（配合镜子使用）</label>
+            <div class="toggle-group">
+                <button class="toggle-btn active" data-mirror="false">正常</button>
+                <button class="toggle-btn" data-mirror="true">镜像</button>
+            </div>
+        </div>
+        
+        <button class="start-btn" id="startBtn">▶️ 开始提词</button>
+    </div>
+    
+    <!-- 提词器界面 -->
+    <div class="teleprompter" id="teleprompter">
+        <div class="fade-top"></div>
+        <div class="center-line"></div>
+        <div class="prompter-text">
+            <div class="text-content" id="textContent"></div>
+        </div>
+        <div class="fade-bottom"></div>
+        
+        <div class="control-bar">
+            <button class="ctrl-btn" id="backBtn">⬅️</button>
+            <div class="speed-adjust">
+                <button id="speedDown">−</button>
+                <span id="currentSpeed">40</span>
+                <button id="speedUp">+</button>
+            </div>
+            <button class="ctrl-btn play" id="playPauseBtn">⏸️</button>
+            <button class="ctrl-btn" id="resetBtn">↺</button>
+            <button class="ctrl-btn" id="exitBtn">✕</button>
+        </div>
+    </div>
+    
+    <!-- 倒计时 -->
+    <div class="countdown" id="countdown"></div>
+    
+    <script>
+        // 状态
+        let isPlaying = false;
+        let scrollPosition = 0;
+        let speed = 40;
+        let fontSize = 42;
+        let countdownSeconds = 3;
+        let isMirrored = false;
+        let animationId = null;
+        
+        // 元素
+        const settingsPanel = document.getElementById('settingsPanel');
+        const teleprompter = document.getElementById('teleprompter');
+        const textContent = document.getElementById('textContent');
+        const countdown = document.getElementById('countdown');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const currentSpeedEl = document.getElementById('currentSpeed');
+        
+        // 设置事件
+        document.getElementById('fontSize').addEventListener('input', (e) => {
+            fontSize = e.target.value;
+            document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+        });
+        
+        document.getElementById('scrollSpeed').addEventListener('input', (e) => {
+            speed = parseInt(e.target.value);
+            document.getElementById('speedValue').textContent = speed;
+            currentSpeedEl.textContent = speed;
+        });
+        
+        // 倒计时选择
+        document.querySelectorAll('[data-countdown]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-countdown]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                countdownSeconds = parseInt(btn.dataset.countdown);
+            });
+        });
+        
+        // 镜像选择
+        document.querySelectorAll('[data-mirror]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-mirror]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                isMirrored = btn.dataset.mirror === 'true';
+            });
+        });
+        
+        // 开始
+        document.getElementById('startBtn').addEventListener('click', () => {
+            const text = document.getElementById('scriptText').value.trim();
+            if (!text) {
+                alert('请先输入文案！');
+                return;
+            }
+            
+            // 设置文本
+            textContent.innerHTML = text.split('\n').map(line => 
+                line ? `<p style="margin: 0.5em 0;">${line}</p>` : '<p style="margin: 0.5em 0;">&nbsp;</p>'
+            ).join('');
+            textContent.style.fontSize = fontSize + 'px';
+            
+            if (isMirrored) {
+                textContent.classList.add('mirrored');
+            } else {
+                textContent.classList.remove('mirrored');
+            }
+            
+            // 重置位置
+            scrollPosition = window.innerHeight / 2;
+            textContent.style.transform = `translateY(${scrollPosition}px)`;
+            
+            settingsPanel.classList.add('hidden');
+            teleprompter.classList.add('active');
+            
+            // 倒计时
+            if (countdownSeconds > 0) {
+                startCountdown();
+            } else {
+                startScrolling();
+            }
+        });
+        
+        function startCountdown() {
+            let count = countdownSeconds;
+            countdown.classList.add('active');
+            countdown.textContent = count;
+            
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdown.textContent = count;
+                } else {
+                    clearInterval(timer);
+                    countdown.classList.remove('active');
+                    startScrolling();
+                }
+            }, 1000);
+        }
+        
+        function startScrolling() {
+            isPlaying = true;
+            playPauseBtn.textContent = '⏸️';
+            scroll();
+        }
+        
+        function scroll() {
+            if (!isPlaying) return;
+            
+            scrollPosition -= speed / 60;
+            
+            const transform = isMirrored 
+                ? `translateY(${scrollPosition}px) scaleX(-1)` 
+                : `translateY(${scrollPosition}px)`;
+            textContent.style.transform = transform;
+            
+            // 检查是否滚动完毕
+            const textHeight = textContent.offsetHeight;
+            if (scrollPosition < -textHeight) {
+                isPlaying = false;
+                playPauseBtn.textContent = '▶️';
+                return;
+            }
+            
+            animationId = requestAnimationFrame(scroll);
+        }
+        
+        // 播放/暂停
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                isPlaying = false;
+                playPauseBtn.textContent = '▶️';
+                cancelAnimationFrame(animationId);
+            } else {
+                startScrolling();
+            }
+        });
+        
+        // 速度调节
+        document.getElementById('speedUp').addEventListener('click', () => {
+            speed = Math.min(100, speed + 5);
+            currentSpeedEl.textContent = speed;
+        });
+        
+        document.getElementById('speedDown').addEventListener('click', () => {
+            speed = Math.max(10, speed - 5);
+            currentSpeedEl.textContent = speed;
+        });
+        
+        // 重置
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            isPlaying = false;
+            cancelAnimationFrame(animationId);
+            scrollPosition = window.innerHeight / 2;
+            const transform = isMirrored 
+                ? `translateY(${scrollPosition}px) scaleX(-1)` 
+                : `translateY(${scrollPosition}px)`;
+            textContent.style.transform = transform;
+            playPauseBtn.textContent = '▶️';
+        });
+        
+        // 返回设置
+        document.getElementById('backBtn').addEventListener('click', () => {
+            exitPrompter();
+        });
+        
+        document.getElementById('exitBtn').addEventListener('click', () => {
+            exitPrompter();
+        });
+        
+        function exitPrompter() {
+            isPlaying = false;
+            cancelAnimationFrame(animationId);
+            teleprompter.classList.remove('active');
+            settingsPanel.classList.remove('hidden');
+        }
+        
+        // 触摸控制（点击屏幕暂停/继续）
+        document.querySelector('.prompter-text').addEventListener('click', () => {
+            if (isPlaying) {
+                isPlaying = false;
+                playPauseBtn.textContent = '▶️';
+                cancelAnimationFrame(animationId);
+            } else {
+                startScrolling();
+            }
+        });
+        
+        // 防止iOS橡皮筋效果
+        document.body.addEventListener('touchmove', (e) => {
+            if (teleprompter.classList.contains('active')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
