@@ -719,11 +719,23 @@
         });
         
         // 开始
-        document.getElementById('startBtn').addEventListener('click', () => {
+        document.getElementById('startBtn').addEventListener('click', async () => {
             const text = document.getElementById('scriptText').value.trim();
             if (!text) {
                 alert('请先输入文案！');
                 return;
+            }
+            
+            // 如果是语音模式，先在用户点击时请求权限
+            if (scrollMode === 'voice' && recognition) {
+                try {
+                    // 必须在用户点击事件中直接启动
+                    recognition.start();
+                    recognition.stop(); // 立即停止，只是为了触发权限请求
+                    await new Promise(r => setTimeout(r, 500)); // 等待权限弹窗
+                } catch(e) {
+                    console.log('预启动:', e.message);
+                }
             }
             
             // 保存脚本行
