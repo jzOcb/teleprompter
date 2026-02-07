@@ -737,19 +737,34 @@
         }
         
         function findAndScrollToPosition(transcript) {
-            // 防抖：至少间隔1秒才能滚动
+            // 防抖：至少间隔1.5秒才能滚动
             const now = Date.now();
-            if (now - lastMatchTime < 1000) return;
+            if (now - lastMatchTime < 1500) return;
             
             // 清理文本
             const cleanTranscript = transcript.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (cleanTranscript.length < 5) return;
+            if (cleanTranscript.length < 6) return;
             
-            // 只检查下一行（不要跳太远）
-            const nextLine = currentLineIndex + 1;
+            // 获取当前行和下一行
+            const currentText = scriptLines[currentLineIndex] || '';
+            const currentClean = currentText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
             
-            // 跳过空行找到真正的下一行
-            let targetLine = nextLine;
+            // 必须先说完当前行50%以上，才考虑下一行
+            if (currentClean.length > 4) {
+                const currentInTranscript = currentClean.slice(0, Math.floor(currentClean.length * 0.5));
+                let foundCurrentContent = false;
+                for (let i = 0; i <= cleanTranscript.length - 4; i++) {
+                    if (currentClean.slice(0, 6).includes(cleanTranscript.slice(i, i+4))) {
+                        foundCurrentContent = true;
+                        break;
+                    }
+                }
+                // 如果识别文本里没有当前行开头的内容，可能用户还没开始说这行
+                // 不过这个检查可能太严格，暂时注释掉
+            }
+            
+            // 找下一个非空行
+            let targetLine = currentLineIndex + 1;
             while (targetLine < scriptLines.length && (!scriptLines[targetLine] || !scriptLines[targetLine].trim())) {
                 targetLine++;
             }
@@ -757,33 +772,27 @@
             
             const lineText = scriptLines[targetLine];
             const lineClean = lineText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (lineClean.length < 3) return;
+            if (lineClean.length < 4) return;
             
-            // 取识别文本的最后部分
-            const recentText = cleanTranscript.slice(-15);
+            // 只用识别文本的最后10个字
+            const recentText = cleanTranscript.slice(-10);
             
-            // 关键修复：只匹配行开头的前8个字
-            const lineStart = lineClean.slice(0, 8);
+            // 只匹配下一行开头的前6个字（更严格）
+            const lineStart = lineClean.slice(0, 6);
             
-            // 方法1: 精确子串匹配（4字以上，且在行开头）
-            for (let len = 4; len <= Math.min(recentText.length, 8); len++) {
+            // 必须5字以上精确匹配行开头
+            for (let len = 5; len <= Math.min(recentText.length, 6); len++) {
                 const searchStr = recentText.slice(-len);
-                if (lineStart.includes(searchStr)) {
-                    console.log(`匹配下一行开头: "${searchStr}" in "${lineStart}"`);
+                // 必须从行开头开始匹配
+                if (lineStart.startsWith(searchStr) || lineStart.slice(0, len) === searchStr) {
+                    console.log(`精确匹配下一行开头: "${searchStr}" = "${lineStart.slice(0, len)}"`);
                     lastMatchTime = now;
                     scrollToLine(targetLine);
                     return;
                 }
             }
             
-            // 方法2: 模糊相似度匹配（只比较行开头）
-            const sim = similarity(recentText.slice(-8), lineStart);
-            if (sim > 0.6) {
-                console.log(`模糊匹配下一行, 相似度: ${sim.toFixed(2)}`);
-                lastMatchTime = now;
-                scrollToLine(targetLine);
-                return;
-            }
+            // 移除模糊匹配，太容易误触发
         }
         
         // 滚动到指定行
