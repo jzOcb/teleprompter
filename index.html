@@ -710,35 +710,72 @@
             voiceNote.style.color = '#ff6b6b';
         }
         
-        // 模糊匹配函数 - 只允许顺序滚动到下一行
+        // 模糊匹配函数 - 容忍语音识别误差
         let lastMatchTime = 0;
         
+        // 计算两个字符串的相似度 (0-1)
+        function similarity(s1, s2) {
+            if (s1.length === 0 || s2.length === 0) return 0;
+            
+            let matches = 0;
+            const len = Math.min(s1.length, s2.length);
+            
+            for (let i = 0; i < len; i++) {
+                if (s1[i] === s2[i]) matches++;
+            }
+            
+            // 也检查是否有连续3字匹配（位置不要求对齐）
+            for (let i = 0; i <= s1.length - 3; i++) {
+                const chunk = s1.slice(i, i + 3);
+                if (s2.includes(chunk)) {
+                    matches += 2; // 额外奖励
+                    break;
+                }
+            }
+            
+            return matches / Math.max(s1.length, s2.length);
+        }
+        
         function findAndScrollToPosition(transcript) {
-            // 防抖：至少间隔1秒才能滚动
+            // 防抖：至少间隔0.8秒才能滚动
             const now = Date.now();
-            if (now - lastMatchTime < 1000) return;
+            if (now - lastMatchTime < 800) return;
             
             // 清理文本
             const cleanTranscript = transcript.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (cleanTranscript.length < 5) return;
+            if (cleanTranscript.length < 4) return;
             
-            // 只检查下一行
-            const nextLine = currentLineIndex + 1;
-            if (nextLine >= scriptLines.length) return;
-            
-            const nextLineClean = scriptLines[nextLine].replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (nextLineClean.length < 2) return;
-            
-            // 取识别文本的最后部分
-            const recentText = cleanTranscript.slice(-15);
-            
-            // 需要匹配下一行的至少5个连续字符
-            for (let len = 5; len <= Math.min(recentText.length, 10); len++) {
-                const searchStr = recentText.slice(-len);
-                if (nextLineClean.includes(searchStr)) {
-                    console.log(`匹配下一行! "${searchStr}"`);
+            // 检查接下来的几行
+            for (let offset = 1; offset <= 3; offset++) {
+                const checkLine = currentLineIndex + offset;
+                if (checkLine >= scriptLines.length) break;
+                
+                const lineText = scriptLines[checkLine];
+                if (!lineText || !lineText.trim()) continue;
+                
+                const lineClean = lineText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
+                if (lineClean.length < 2) continue;
+                
+                // 取识别文本的最后部分
+                const recentText = cleanTranscript.slice(-20);
+                
+                // 方法1: 精确子串匹配（3字以上）
+                for (let len = 3; len <= Math.min(recentText.length, 8); len++) {
+                    const searchStr = recentText.slice(-len);
+                    if (lineClean.includes(searchStr)) {
+                        console.log(`精确匹配第${checkLine}行: "${searchStr}"`);
+                        lastMatchTime = now;
+                        scrollToLine(checkLine);
+                        return;
+                    }
+                }
+                
+                // 方法2: 模糊相似度匹配（容忍识别误差）
+                const sim = similarity(recentText.slice(-10), lineClean.slice(0, 10));
+                if (sim > 0.5) {
+                    console.log(`模糊匹配第${checkLine}行, 相似度: ${sim.toFixed(2)}`);
                     lastMatchTime = now;
-                    scrollToLine(nextLine);
+                    scrollToLine(checkLine);
                     return;
                 }
             }
