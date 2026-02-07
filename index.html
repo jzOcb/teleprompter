@@ -551,6 +551,11 @@
         <!-- 计时器 -->
         <div class="timer-display" id="timerDisplay">00:00</div>
         
+        <!-- 调试面板 -->
+        <div id="debugPanel" style="position:fixed; bottom:100px; left:10px; right:10px; background:rgba(0,0,0,0.9); color:#0f0; font-family:monospace; font-size:11px; padding:8px; border-radius:8px; max-height:150px; overflow-y:auto; z-index:999; display:none;">
+            <div id="debugLog"></div>
+        </div>
+        
         <div class="fade-top"></div>
         <div class="center-line"></div>
         
@@ -710,6 +715,20 @@
             voiceNote.style.color = '#ff6b6b';
         }
         
+        // 调试面板
+        const debugPanel = document.getElementById('debugPanel');
+        const debugLog = document.getElementById('debugLog');
+        let debugLines = [];
+        
+        function debug(msg) {
+            const time = new Date().toLocaleTimeString();
+            debugLines.push(`[${time}] ${msg}`);
+            if (debugLines.length > 20) debugLines.shift();
+            debugLog.innerHTML = debugLines.join('<br>');
+            debugPanel.scrollTop = debugPanel.scrollHeight;
+            console.log(msg);
+        }
+        
         // 模糊匹配函数 - 容忍语音识别误差
         let lastMatchTime = 0;
         
@@ -737,69 +756,83 @@
         }
         
         function findAndScrollToPosition(transcript) {
-            // 防抖：至少间隔1.5秒才能滚动
             const now = Date.now();
-            if (now - lastMatchTime < 1500) return;
+            const timeSinceLast = now - lastMatchTime;
+            
+            // 防抖：至少间隔2秒才能滚动
+            if (timeSinceLast < 2000) {
+                debug(`⏳ 防抖中 (${Math.round(timeSinceLast)}ms < 2000ms)`);
+                return;
+            }
             
             // 清理文本
             const cleanTranscript = transcript.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (cleanTranscript.length < 6) return;
-            
-            // 获取当前行和下一行
-            const currentText = scriptLines[currentLineIndex] || '';
-            const currentClean = currentText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            
-            // 必须先说完当前行50%以上，才考虑下一行
-            if (currentClean.length > 4) {
-                const currentInTranscript = currentClean.slice(0, Math.floor(currentClean.length * 0.5));
-                let foundCurrentContent = false;
-                for (let i = 0; i <= cleanTranscript.length - 4; i++) {
-                    if (currentClean.slice(0, 6).includes(cleanTranscript.slice(i, i+4))) {
-                        foundCurrentContent = true;
-                        break;
-                    }
-                }
-                // 如果识别文本里没有当前行开头的内容，可能用户还没开始说这行
-                // 不过这个检查可能太严格，暂时注释掉
+            if (cleanTranscript.length < 6) {
+                debug(`⚠️ 文本太短: ${cleanTranscript.length}字`);
+                return;
             }
+            
+            debug(`📝 当前行=${currentLineIndex}, 识别="${cleanTranscript.slice(-15)}"`);
             
             // 找下一个非空行
             let targetLine = currentLineIndex + 1;
             while (targetLine < scriptLines.length && (!scriptLines[targetLine] || !scriptLines[targetLine].trim())) {
                 targetLine++;
             }
-            if (targetLine >= scriptLines.length) return;
+            if (targetLine >= scriptLines.length) {
+                debug(`⚠️ 已是最后一行`);
+                return;
+            }
             
             const lineText = scriptLines[targetLine];
             const lineClean = lineText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (lineClean.length < 4) return;
+            if (lineClean.length < 4) {
+                debug(`⚠️ 目标行太短`);
+                return;
+            }
             
             // 只用识别文本的最后10个字
             const recentText = cleanTranscript.slice(-10);
             
-            // 只匹配下一行开头的前6个字（更严格）
+            // 只匹配下一行开头的前6个字
             const lineStart = lineClean.slice(0, 6);
+            
+            debug(`🔍 检查行${targetLine}: 开头="${lineStart}", 听到末尾="${recentText}"`);
             
             // 必须5字以上精确匹配行开头
             for (let len = 5; len <= Math.min(recentText.length, 6); len++) {
                 const searchStr = recentText.slice(-len);
-                // 必须从行开头开始匹配
-                if (lineStart.startsWith(searchStr) || lineStart.slice(0, len) === searchStr) {
-                    console.log(`精确匹配下一行开头: "${searchStr}" = "${lineStart.slice(0, len)}"`);
+                const linePrefix = lineStart.slice(0, len);
+                
+                if (lineStart.startsWith(searchStr)) {
+                    debug(`✅ 匹配! "${searchStr}" 开头于 "${lineStart}"`);
+                    lastMatchTime = now;
+                    scrollToLine(targetLine);
+                    return;
+                }
+                if (linePrefix === searchStr) {
+                    debug(`✅ 匹配! "${searchStr}" = "${linePrefix}"`);
                     lastMatchTime = now;
                     scrollToLine(targetLine);
                     return;
                 }
             }
             
-            // 移除模糊匹配，太容易误触发
+            debug(`❌ 无匹配`);
         }
         
         // 滚动到指定行
         function scrollToLine(lineIndex) {
-            if (lineIndex < currentLineIndex) return; // 只往前，不往回
-            if (lineIndex === currentLineIndex) return; // 已经在这行
+            if (lineIndex < currentLineIndex) {
+                debug(`🚫 scrollToLine(${lineIndex}) 拒绝: 小于当前${currentLineIndex}`);
+                return;
+            }
+            if (lineIndex === currentLineIndex) {
+                debug(`🚫 scrollToLine(${lineIndex}) 拒绝: 已在此行`);
+                return;
+            }
             
+            debug(`📜 scrollToLine(${lineIndex}) 执行! 从${currentLineIndex}跳到${lineIndex}`);
             currentLineIndex = lineIndex;
             
             // 更新高亮
@@ -843,6 +876,11 @@
             voiceBtn.style.display = 'flex';
             speedAdjustBar.style.display = 'none';
             heardText.textContent = '启动中...点击允许麦克风';
+            
+            // 显示调试面板
+            debugPanel.style.display = 'block';
+            debugLines = [];
+            debug(`🎤 语音识别启动, 当前行=${currentLineIndex}`);
             
             // 3秒后如果还没启动，显示提示
             const startTimeout = setTimeout(() => {
