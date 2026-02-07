@@ -626,19 +626,30 @@
             textContent.style.transform = transform;
         }
         
-        function startVoiceRecognition() {
+        async function startVoiceRecognition() {
             if (!recognition) return;
-            isVoiceActive = true;
-            voiceIndicator.classList.add('active');
-            voiceBtn.classList.add('voice-active');
-            playPauseBtn.style.display = 'none';
-            voiceBtn.style.display = 'flex';
-            speedAdjustBar.style.display = 'none';
             
+            // 先请求麦克风权限
             try {
+                heardText.textContent = '请求麦克风权限...';
+                voiceIndicator.classList.add('active');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('麦克风权限已获取');
+                stream.getTracks().forEach(track => track.stop()); // 释放，让speech recognition用
+                
+                isVoiceActive = true;
+                voiceBtn.classList.add('voice-active');
+                playPauseBtn.style.display = 'none';
+                voiceBtn.style.display = 'flex';
+                speedAdjustBar.style.display = 'none';
+                
                 recognition.start();
+                console.log('语音识别启动成功');
             } catch(e) {
-                console.log('已在识别中');
+                console.log('麦克风权限错误:', e);
+                heardText.textContent = '❌ 麦克风权限被拒绝，请在设置中开启';
+                alert('需要麦克风权限才能使用语音跟踪功能。\n\n请在浏览器设置中允许此网站访问麦克风。');
             }
         }
         
