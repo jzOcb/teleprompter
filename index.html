@@ -538,31 +538,30 @@
             voiceNote.style.color = '#ff6b6b';
         }
         
-        // 模糊匹配函数 - 只在说到下一行开头时才滚动
+        // 模糊匹配函数 - 平衡版本
         function findAndScrollToPosition(transcript) {
-            // 清理文本 - 移除标点和空格
-            const cleanTranscript = transcript.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?]/g, '').toLowerCase();
-            if (cleanTranscript.length < 3) return;
+            // 清理文本
+            const cleanTranscript = transcript.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?]/g, '');
+            if (cleanTranscript.length < 4) return;
             
-            // 取最后识别的4-10个字来匹配
-            const recentText = cleanTranscript.slice(-10);
+            // 取最后识别的5-12个字
+            const recentText = cleanTranscript.slice(-12);
             
-            // 只检查下一行（不要跳太远）
-            const nextLine = currentLineIndex + 1;
-            if (nextLine >= scriptLines.length) return;
-            
-            const nextLineClean = scriptLines[nextLine].replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?]/g, '').toLowerCase();
-            
-            // 检查是否说到了下一行的开头（前6个字）
-            const lineStart = nextLineClean.slice(0, 6);
-            
-            // 需要匹配到下一行开头的至少3个字才滚动
-            for (let len = 3; len <= Math.min(recentText.length, 6); len++) {
-                const searchStr = recentText.slice(-len);
-                if (lineStart.includes(searchStr)) {
-                    console.log(`匹配到下一行开头! "${searchStr}"`);
-                    scrollToLine(nextLine);
-                    return;
+            // 检查接下来的3行
+            for (let offset = 1; offset <= 3; offset++) {
+                const checkLine = currentLineIndex + offset;
+                if (checkLine >= scriptLines.length) break;
+                
+                const lineClean = scriptLines[checkLine].replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?]/g, '');
+                
+                // 需要匹配4个字以上才滚动
+                for (let len = 4; len <= Math.min(recentText.length, 8); len++) {
+                    const searchStr = recentText.slice(-len);
+                    if (lineClean.includes(searchStr)) {
+                        console.log(`匹配! 第${checkLine}行 "${searchStr}"`);
+                        scrollToLine(checkLine);
+                        return;
+                    }
                 }
             }
         }
