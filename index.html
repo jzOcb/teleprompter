@@ -626,50 +626,23 @@
             textContent.style.transform = transform;
         }
         
-        async function startVoiceRecognition() {
+        function startVoiceRecognition() {
             if (!recognition) return;
             
-            // 检测是否在内置浏览器
-            const isInAppBrowser = /Telegram|WeChat|MicroMessenger|QQ|Line/i.test(navigator.userAgent);
-            if (isInAppBrowser) {
-                alert('⚠️ 语音跟踪功能需要在 Safari 或 Chrome 中打开\n\n请点击右下角 ⋯ → "在Safari中打开"');
-                return;
-            }
+            isVoiceActive = true;
+            voiceIndicator.classList.add('active');
+            voiceBtn.classList.add('voice-active');
+            playPauseBtn.style.display = 'none';
+            voiceBtn.style.display = 'flex';
+            speedAdjustBar.style.display = 'none';
+            heardText.textContent = '启动语音识别...';
             
-            // 先请求麦克风权限（带超时）
             try {
-                heardText.textContent = '请求麦克风权限...';
-                voiceIndicator.classList.add('active');
-                
-                // 5秒超时
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('timeout')), 5000)
-                );
-                
-                const stream = await Promise.race([
-                    navigator.mediaDevices.getUserMedia({ audio: true }),
-                    timeoutPromise
-                ]);
-                
-                console.log('麦克风权限已获取');
-                stream.getTracks().forEach(track => track.stop());
-                
-                isVoiceActive = true;
-                voiceBtn.classList.add('voice-active');
-                playPauseBtn.style.display = 'none';
-                voiceBtn.style.display = 'flex';
-                speedAdjustBar.style.display = 'none';
-                
                 recognition.start();
-                console.log('语音识别启动成功');
+                console.log('语音识别启动');
             } catch(e) {
-                console.log('麦克风权限错误:', e);
-                voiceIndicator.classList.remove('active');
-                if (e.message === 'timeout') {
-                    alert('麦克风请求超时\n\n可能是因为在内置浏览器中打开，请用 Safari 或 Chrome 打开此页面');
-                } else {
-                    alert('需要麦克风权限才能使用语音跟踪功能。\n\n请在浏览器设置中允许此网站访问麦克风。');
-                }
+                console.log('启动错误:', e);
+                heardText.textContent = '❌ 启动失败: ' + e.message;
             }
         }
         
