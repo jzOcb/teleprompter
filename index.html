@@ -512,7 +512,17 @@
             
             recognition.onstart = () => {
                 console.log('语音识别已启动');
-                heardText.textContent = '正在听...';
+                heardText.textContent = '🎤 正在听... 请开始说话';
+            };
+            
+            recognition.onaudiostart = () => {
+                console.log('检测到音频输入');
+                heardText.textContent = '🎤 检测到声音...';
+            };
+            
+            recognition.onspeechstart = () => {
+                console.log('检测到语音');
+                heardText.textContent = '🎤 正在识别...';
             };
             
             recognition.onerror = (event) => {
@@ -524,12 +534,28 @@
             };
             
             recognition.onend = () => {
+                console.log('语音识别结束');
                 // 如果还在语音模式，自动重启
                 if (isVoiceActive && scrollMode === 'voice') {
-                    try {
-                        recognition.start();
-                    } catch(e) {}
+                    heardText.textContent = '重新连接中...';
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                            console.log('重新启动语音识别');
+                        } catch(e) {
+                            console.log('重启失败:', e);
+                        }
+                    }, 100);
                 }
+            };
+            
+            recognition.onnomatch = () => {
+                console.log('没有匹配到语音');
+                heardText.textContent = '没听清，请继续说...';
+            };
+            
+            recognition.onspeechend = () => {
+                console.log('检测到语音结束');
             };
         } else {
             // 不支持语音识别
