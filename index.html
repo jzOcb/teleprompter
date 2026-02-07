@@ -288,7 +288,10 @@
     <div class="settings-panel" id="settingsPanel">
         <h1><span>📜</span> 小红书提词器</h1>
         
-        <textarea id="scriptText" placeholder="在这里粘贴你的文案...&#10;&#10;支持多段落，滚动播放时会自动居中显示。"></textarea>
+        <div style="position: relative;">
+            <textarea id="scriptText" placeholder="在这里粘贴你的文案...&#10;&#10;支持多段落，滚动播放时会自动居中显示。"></textarea>
+            <button id="clearBtn" style="position: absolute; top: 10px; right: 10px; background: rgba(255,107,157,0.8); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 14px; cursor: pointer;">🗑️ 清空</button>
+        </div>
         
         <div class="control-group">
             <label>📏 字体大小</label>
@@ -364,6 +367,12 @@
         const countdown = document.getElementById('countdown');
         const playPauseBtn = document.getElementById('playPauseBtn');
         const currentSpeedEl = document.getElementById('currentSpeed');
+        
+        // 清空按钮
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('scriptText').value = '';
+            document.getElementById('scriptText').focus();
+        });
         
         // 设置事件
         document.getElementById('fontSize').addEventListener('input', (e) => {
