@@ -704,14 +704,15 @@
                 textContent.classList.remove('mirrored');
             }
             
-            // 重置位置 - 确保从第一行开始
-            scrollPosition = window.innerHeight / 2;
-            updateTransform();
-            
-            // 高亮第一行
+            // 高亮第一行，并把第一行定位到屏幕中央
             setTimeout(() => {
                 const firstP = textContent.querySelector('p');
-                if (firstP) firstP.classList.add('current');
+                if (firstP) {
+                    firstP.classList.add('current');
+                    // 计算让第一行居中的位置
+                    scrollPosition = window.innerHeight / 2 - firstP.offsetTop - firstP.offsetHeight / 2;
+                    updateTransform();
+                }
             }, 100);
             
             // 设置控制栏
