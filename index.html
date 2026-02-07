@@ -627,7 +627,11 @@
         }
         
         function startVoiceRecognition() {
-            if (!recognition) return;
+            if (!recognition) {
+                heardText.textContent = '❌ 浏览器不支持语音识别';
+                voiceIndicator.classList.add('active');
+                return;
+            }
             
             isVoiceActive = true;
             voiceIndicator.classList.add('active');
@@ -635,14 +639,22 @@
             playPauseBtn.style.display = 'none';
             voiceBtn.style.display = 'flex';
             speedAdjustBar.style.display = 'none';
-            heardText.textContent = '启动语音识别...';
+            heardText.textContent = '启动中...点击允许麦克风';
+            
+            // 3秒后如果还没启动，显示提示
+            const startTimeout = setTimeout(() => {
+                if (heardText.textContent.includes('启动中')) {
+                    heardText.textContent = '⚠️ 请在弹窗中允许麦克风，或检查 设置→Safari→麦克风';
+                }
+            }, 3000);
             
             try {
                 recognition.start();
-                console.log('语音识别启动');
+                console.log('recognition.start() 已调用');
             } catch(e) {
+                clearTimeout(startTimeout);
                 console.log('启动错误:', e);
-                heardText.textContent = '❌ 启动失败: ' + e.message;
+                heardText.textContent = '❌ 错误: ' + e.message;
             }
         }
         
