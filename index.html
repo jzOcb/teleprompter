@@ -178,7 +178,7 @@
         .text-content {
             text-align: center;
             line-height: 1.8;
-            transition: transform 0.3s ease-out;
+            transition: transform 0.15s ease-out;
         }
         
         .text-content.mirrored {
@@ -492,7 +492,8 @@
         if (speechSupported) {
             recognition = new SpeechRecognition();
             recognition.continuous = true;
-            recognition.interimResults = true;
+            recognition.interimResults = true;  // 获取中间结果，更快响应
+            recognition.maxAlternatives = 1;
             recognition.lang = 'zh-CN';
             
             recognition.onresult = (event) => {
@@ -537,25 +538,32 @@
             voiceNote.style.color = '#ff6b6b';
         }
         
-        // 模糊匹配函数
+        // 模糊匹配函数 - 更激进的匹配策略
         function findAndScrollToPosition(transcript) {
             // 清理文本 - 移除标点和空格
-            const cleanTranscript = transcript.replace(/[，。！？、,.\s\n]/g, '').toLowerCase();
+            const cleanTranscript = transcript.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?]/g, '').toLowerCase();
             if (cleanTranscript.length < 2) return;
             
-            console.log('清理后的识别文本:', cleanTranscript);
+            // 取最后识别的2-8个字来匹配（更短=更快响应）
+            const recentText = cleanTranscript.slice(-8);
             
-            // 尝试不同长度的匹配
-            for (let searchLen = Math.min(cleanTranscript.length, 15); searchLen >= 3; searchLen--) {
-                const searchStr = cleanTranscript.slice(-searchLen);
+            // 从当前行开始往后找（允许往前看2行应对延迟）
+            const startLine = Math.max(0, currentLineIndex - 1);
+            
+            // 尝试匹配，从短到长
+            for (let len = 2; len <= recentText.length; len++) {
+                const searchStr = recentText.slice(-len);
                 
-                // 在每一行中查找
-                for (let i = currentLineIndex; i < scriptLines.length; i++) {
-                    const lineClean = scriptLines[i].replace(/[，。！？、,.\s]/g, '').toLowerCase();
+                for (let i = startLine; i < scriptLines.length; i++) {
+                    const lineClean = scriptLines[i].replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?]/g, '').toLowerCase();
+                    
                     if (lineClean.includes(searchStr)) {
-                        console.log(`匹配成功! 在第${i}行找到 "${searchStr}"`);
-                        scrollToLine(i);
-                        return;
+                        // 找到了，但只有当是新行或更后面的行才滚动
+                        if (i > currentLineIndex) {
+                            console.log(`匹配! 第${i}行 "${searchStr}"`);
+                            scrollToLine(i);
+                            return;
+                        }
                     }
                 }
             }
