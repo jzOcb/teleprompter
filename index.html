@@ -181,9 +181,7 @@
             transition: transform 0.15s ease-out;
         }
         
-        .text-content.mirrored {
-            transform: scaleX(-1);
-        }
+        /* mirrored class removed - handled by JS transform */
         
         .text-content p {
             margin: 0.5em 0;
@@ -744,10 +742,11 @@
                 }
             }
             
-            // 保存脚本行
-            scriptLines = text.split('\n').filter(line => line.trim());
+            // 保存脚本行（保留空行以对齐段落索引）
+            scriptLines = text.split('\n');
             allText = text;
             currentLineIndex = 0;
+            lastMatchTime = 0; // 重置匹配时间
             
             // 让输入框失去焦点，确保从头开始
             document.getElementById('scriptText').blur();
@@ -758,11 +757,7 @@
             ).join('');
             textContent.style.fontSize = fontSize + 'px';
             
-            if (isMirrored) {
-                textContent.classList.add('mirrored');
-            } else {
-                textContent.classList.remove('mirrored');
-            }
+            // 镜像由 updateTransform() 处理
             
             // 高亮第一行，并把第一行定位到屏幕中央
             setTimeout(() => {
@@ -881,14 +876,22 @@
             isPlaying = false;
             cancelAnimationFrame(animationId);
             currentLineIndex = 0;
-            scrollPosition = window.innerHeight / 2;
-            updateTransform();
+            lastMatchTime = 0; // 重置匹配时间
             playPauseBtn.textContent = '▶️';
             
-            // 清除高亮
-            textContent.querySelectorAll('p').forEach(p => {
+            // 清除高亮并重新定位到第一行
+            const paragraphs = textContent.querySelectorAll('p');
+            paragraphs.forEach((p, i) => {
                 p.classList.remove('current', 'spoken');
+                if (i === 0) p.classList.add('current');
             });
+            
+            // 重新计算第一行居中位置
+            const firstP = paragraphs[0];
+            if (firstP) {
+                scrollPosition = window.innerHeight / 2 - firstP.offsetTop - firstP.offsetHeight / 2;
+                updateTransform();
+            }
         });
         
         // 返回设置
@@ -927,6 +930,129 @@
                 e.preventDefault();
             }
         }, { passive: false });
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (!teleprompter.classList.contains('active')) return;
+            
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    if (scrollMode === 'auto') {
+                        if (isPlaying) {
+                            isPlaying = false;
+                            playPauseBtn.textContent = '▶️';
+                            cancelAnimationFrame(animationId);
+                        } else {
+                            startScrolling();
+                        }
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    speed = Math.min(100, speed + 5);
+                    currentSpeedEl.textContent = speed;
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    speed = Math.max(10, speed - 5);
+                    currentSpeedEl.textContent = speed;
+                    break;
+                case 'KeyR':
+                    e.preventDefault();
+                    document.getElementById('resetBtn').click();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    exitPrompter();
+                    break;
+            }
+        });
+        
+        // 自动滚动模式下也更新当前行高亮
+        function updateCurrentLineHighlight() {
+            if (scrollMode !== 'auto' || !isPlaying) return;
+            
+            const paragraphs = textContent.querySelectorAll('p');
+            const centerY = window.innerHeight / 2;
+            
+            paragraphs.forEach((p, i) => {
+                const rect = p.getBoundingClientRect();
+                const pCenter = rect.top + rect.height / 2;
+                
+                p.classList.remove('current', 'spoken');
+                if (Math.abs(pCenter - centerY) < rect.height) {
+                    p.classList.add('current');
+                    currentLineIndex = i;
+                } else if (rect.bottom < centerY) {
+                    p.classList.add('spoken');
+                }
+            });
+            
+            if (isPlaying) {
+                requestAnimationFrame(updateCurrentLineHighlight);
+            }
+        }
+        
+        // 修改 startScrolling 启动高亮更新
+        const originalStartScrolling = startScrolling;
+        startScrolling = function() {
+            originalStartScrolling();
+            if (scrollMode === 'auto') {
+                updateCurrentLineHighlight();
+            }
+        };
+        
+        // 保存设置到 localStorage
+        function saveSettings() {
+            localStorage.setItem('teleprompter-settings', JSON.stringify({
+                fontSize, speed, countdownSeconds, isMirrored, scrollMode
+            }));
+        }
+        
+        // 加载设置
+        function loadSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('teleprompter-settings'));
+                if (saved) {
+                    fontSize = saved.fontSize || 42;
+                    speed = saved.speed || 40;
+                    countdownSeconds = saved.countdownSeconds ?? 3;
+                    isMirrored = saved.isMirrored || false;
+                    scrollMode = saved.scrollMode || 'auto';
+                    
+                    // 更新 UI
+                    document.getElementById('fontSize').value = fontSize;
+                    document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+                    document.getElementById('scrollSpeed').value = speed;
+                    document.getElementById('speedValue').textContent = speed;
+                    currentSpeedEl.textContent = speed;
+                    
+                    // 更新按钮状态
+                    document.querySelectorAll('[data-countdown]').forEach(b => {
+                        b.classList.toggle('active', parseInt(b.dataset.countdown) === countdownSeconds);
+                    });
+                    document.querySelectorAll('[data-mirror]').forEach(b => {
+                        b.classList.toggle('active', (b.dataset.mirror === 'true') === isMirrored);
+                    });
+                    document.querySelectorAll('[data-scroll-mode]').forEach(b => {
+                        b.classList.toggle('active', b.dataset.scrollMode === scrollMode);
+                    });
+                    speedControl.style.display = scrollMode === 'voice' ? 'none' : 'block';
+                }
+            } catch(e) {}
+        }
+        
+        // 设置变化时保存
+        ['fontSize', 'scrollSpeed'].forEach(id => {
+            document.getElementById(id).addEventListener('change', saveSettings);
+        });
+        document.querySelectorAll('[data-countdown], [data-mirror], [data-scroll-mode]').forEach(btn => {
+            btn.addEventListener('click', () => setTimeout(saveSettings, 100));
+        });
+        
+        // 页面加载时恢复设置
+        loadSettings();
     </script>
 </body>
 </html>
