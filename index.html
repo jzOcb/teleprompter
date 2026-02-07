@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>📜 提词器 - 自媒体博主必备</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#ff6b9d">
+    <meta name="description" content="自媒体博主必备的提词器工具，支持语音跟踪和自动滚动">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="提词器">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
     <style>
         * {
             margin: 0;
@@ -1053,6 +1068,19 @@
         
         // 页面加载时恢复设置
         loadSettings();
+        
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker 注册成功:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker 注册失败:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>
