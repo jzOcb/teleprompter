@@ -841,11 +841,17 @@
                 }
             });
             
-            // 滚动到该行
+            // 滚动到该行 - 使用 getBoundingClientRect 确保在手机上也准确
             const targetP = paragraphs[lineIndex];
             if (targetP) {
-                const targetY = window.innerHeight / 2 - targetP.offsetTop - targetP.offsetHeight / 2;
-                scrollPosition = targetY;
+                const rect = targetP.getBoundingClientRect();
+                const viewportCenter = window.innerHeight / 2;
+                const targetCenter = rect.top + rect.height / 2;
+                const adjustment = targetCenter - viewportCenter;
+                
+                debug(`📐 滚动计算: 目标中心=${Math.round(targetCenter)}, 屏幕中心=${Math.round(viewportCenter)}, 调整=${Math.round(adjustment)}`);
+                
+                scrollPosition -= adjustment;
                 updateTransform();
             }
         }
