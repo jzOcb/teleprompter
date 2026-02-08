@@ -791,23 +791,23 @@
                 return;
             }
             
-            // 检查整个识别文本（不只是末尾）
+            // 检查整个识别文本 - 模糊匹配（2-3字即可）
             const lineStart = lineClean.slice(0, 6);
+            const prefix2 = lineStart.slice(0, 2);
             const prefix3 = lineStart.slice(0, 3);
-            const prefix4 = lineStart.slice(0, 4);
             
-            debug(`🔍 检查行${targetLine}: 找"${prefix3}"或"${prefix4}"在"${cleanTranscript.slice(-20)}..."`);
+            debug(`🔍 检查行${targetLine}: 找"${prefix2}"或"${prefix3}"在"...${cleanTranscript.slice(-15)}"`);
             
-            // 在整个识别文本中查找下一行开头
-            if (cleanTranscript.includes(prefix4)) {
-                debug(`✅ 匹配! "${prefix4}" 在识别文本中`);
+            // 在整个识别文本中查找下一行开头（2-3字模糊匹配）
+            if (cleanTranscript.includes(prefix3)) {
+                debug(`✅ 匹配! "${prefix3}" 在识别文本中`);
                 lastMatchTime = now;
                 scrollToLine(targetLine);
                 return;
             }
             
-            if (cleanTranscript.includes(prefix3)) {
-                debug(`✅ 匹配! "${prefix3}" 在识别文本中`);
+            if (cleanTranscript.includes(prefix2)) {
+                debug(`✅ 匹配! "${prefix2}" 在识别文本中`);
                 lastMatchTime = now;
                 scrollToLine(targetLine);
                 return;
@@ -845,7 +845,7 @@
             const targetP = paragraphs[lineIndex];
             if (targetP) {
                 const rect = targetP.getBoundingClientRect();
-                const viewportCenter = window.innerHeight / 2;
+                const viewportCenter = window.innerHeight * 0.35;
                 const targetCenter = rect.top + rect.height / 2;
                 const adjustment = targetCenter - viewportCenter;
                 
@@ -878,10 +878,10 @@
             speedAdjustBar.style.display = 'none';
             heardText.textContent = '启动中...点击允许麦克风';
             
-            // 临时开启调试
-            debugPanel.style.display = 'block';
-            debugLines = [];
-            debug(`🎤 语音识别启动, 当前行=${currentLineIndex}`);
+            // 调试面板已关闭
+            // debugPanel.style.display = 'block';
+            // debugLines = [];
+            // debug(`🎤 语音识别启动, 当前行=${currentLineIndex}`);
             
             // 3秒后如果还没启动，显示提示
             const startTimeout = setTimeout(() => {
@@ -1005,7 +1005,7 @@
                     // 初始化时 scrollPosition=0，直接计算调整量
                     scrollPosition = 0;
                     const rect = firstP.getBoundingClientRect();
-                    const viewportCenter = window.innerHeight / 2;
+                    const viewportCenter = window.innerHeight * 0.35;
                     const targetCenter = rect.top + rect.height / 2;
                     scrollPosition = viewportCenter - targetCenter;
                     updateTransform();
@@ -1132,7 +1132,7 @@
             const firstP = paragraphs[0];
             if (firstP) {
                 const rect = firstP.getBoundingClientRect();
-                const viewportCenter = window.innerHeight / 2;
+                const viewportCenter = window.innerHeight * 0.35;
                 const targetCenter = rect.top + rect.height / 2;
                 const adjustment = targetCenter - viewportCenter;
                 scrollPosition -= adjustment;
@@ -1222,7 +1222,7 @@
             if (scrollMode !== 'auto' || !isPlaying) return;
             
             const paragraphs = textContent.querySelectorAll('p');
-            const centerY = window.innerHeight / 2;
+            const centerY = window.innerHeight * 0.35;
             
             paragraphs.forEach((p, i) => {
                 const rect = p.getBoundingClientRect();
