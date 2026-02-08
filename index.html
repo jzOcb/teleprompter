@@ -759,9 +759,9 @@
             const now = Date.now();
             const timeSinceLast = now - lastMatchTime;
             
-            // 防抖：至少间隔0.8秒才能滚动（快语速友好）
-            if (timeSinceLast < 800) {
-                debug(`⏳ 防抖中 (${Math.round(timeSinceLast)}ms < 800ms)`);
+            // 防抖：至少间隔0.5秒才能滚动（快语速友好）
+            if (timeSinceLast < 500) {
+                debug(`⏳ 防抖中 (${Math.round(timeSinceLast)}ms < 500ms)`);
                 return;
             }
             
@@ -791,16 +791,36 @@
                 return;
             }
             
-            // 方法1: 检查当前行是否快说完（末尾3字出现在识别文本中）
+            // 方法1: 检查当前行是否说到一半以上（提前触发滚动）
             const currentText = scriptLines[currentLineIndex] || '';
             const currentClean = currentText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
-            if (currentClean.length >= 4) {
-                const currentEnd = currentClean.slice(-3);
-                if (cleanTranscript.includes(currentEnd)) {
-                    debug(`✅ 当前行快说完! "${currentEnd}" 在识别文本中，提前滚动`);
+            if (currentClean.length >= 6) {
+                // 检查末尾5字
+                const currentEnd5 = currentClean.slice(-5);
+                if (cleanTranscript.includes(currentEnd5)) {
+                    debug(`✅ 当前行快说完! "${currentEnd5}" 在识别文本中，提前滚动`);
                     lastMatchTime = now;
                     scrollToLine(targetLine);
                     return;
+                }
+                // 检查末尾3字
+                const currentEnd3 = currentClean.slice(-3);
+                if (cleanTranscript.includes(currentEnd3)) {
+                    debug(`✅ 当前行快说完! "${currentEnd3}" 在识别文本中，提前滚动`);
+                    lastMatchTime = now;
+                    scrollToLine(targetLine);
+                    return;
+                }
+                // 检查中间部分（50%位置往后的3字片段）
+                const midPoint = Math.floor(currentClean.length * 0.5);
+                for (let i = midPoint; i <= currentClean.length - 3; i++) {
+                    const chunk = currentClean.slice(i, i + 3);
+                    if (cleanTranscript.includes(chunk)) {
+                        debug(`✅ 当前行过半! "${chunk}" 在识别文本中，提前滚动`);
+                        lastMatchTime = now;
+                        scrollToLine(targetLine);
+                        return;
+                    }
                 }
             }
             
