@@ -1002,17 +1002,15 @@
                 const firstP = textContent.querySelector('p');
                 if (firstP) {
                     firstP.classList.add('current');
-                    // 使用 getBoundingClientRect 计算居中位置
+                    // 初始化时 scrollPosition=0，直接计算调整量
                     scrollPosition = 0;
-                    updateTransform();
-                    
                     const rect = firstP.getBoundingClientRect();
                     const viewportCenter = window.innerHeight / 2;
                     const targetCenter = rect.top + rect.height / 2;
                     scrollPosition = viewportCenter - targetCenter;
                     updateTransform();
                 }
-            }, 100);
+            }, 150);
             
             // 设置控制栏
             if (scrollMode === 'voice') {
@@ -1130,20 +1128,17 @@
                 if (i === 0) p.classList.add('current');
             });
             
-            // 重新计算第一行居中位置 - 使用 getBoundingClientRect
+            // 重新计算第一行居中位置 - 直接从当前位置调整
             const firstP = paragraphs[0];
             if (firstP) {
-                // 先重置到0，再计算需要的偏移
-                scrollPosition = 0;
-                updateTransform();
-                
                 const rect = firstP.getBoundingClientRect();
                 const viewportCenter = window.innerHeight / 2;
                 const targetCenter = rect.top + rect.height / 2;
-                scrollPosition = viewportCenter - targetCenter;
+                const adjustment = targetCenter - viewportCenter;
+                scrollPosition -= adjustment;
                 updateTransform();
                 
-                debug(`🔄 Reset: 第一行中心=${Math.round(targetCenter)}, 屏幕中心=${Math.round(viewportCenter)}, scrollPosition=${Math.round(scrollPosition)}`);
+                debug(`🔄 Reset: 调整=${Math.round(adjustment)}, 新scrollPosition=${Math.round(scrollPosition)}`);
             }
         });
         
