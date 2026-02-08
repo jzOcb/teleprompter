@@ -1133,16 +1133,36 @@
                     }
                 }
                 
-                // 后备方案：显示视频预览让用户手动保存
+                // 后备方案：显示视频预览 + 下载/分享按钮
                 const url = URL.createObjectURL(blob);
+                const filename = `teleprompter-${Date.now()}.webm`;
                 const modal = document.createElement('div');
                 modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
                 modal.innerHTML = `
-                    <p style="color:#fff;margin-bottom:10px;text-align:center;">🎬 录制完成！长按视频保存到相册</p>
-                    <video src="${url}" controls playsinline style="max-width:100%;max-height:60vh;border-radius:10px;"></video>
-                    <button onclick="this.parentElement.remove()" style="margin-top:20px;padding:15px 40px;font-size:18px;border:none;border-radius:10px;background:#ff6b9d;color:#fff;">关闭</button>
+                    <p style="color:#fff;margin-bottom:10px;text-align:center;">🎬 录制完成！</p>
+                    <video src="${url}" controls playsinline style="max-width:100%;max-height:50vh;border-radius:10px;"></video>
+                    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
+                        <a href="${url}" download="${filename}" style="padding:15px 30px;font-size:16px;border:none;border-radius:10px;background:#4CAF50;color:#fff;text-decoration:none;">📥 下载视频</a>
+                        <button id="shareVideoBtn" style="padding:15px 30px;font-size:16px;border:none;border-radius:10px;background:#2196F3;color:#fff;">📤 分享</button>
+                        <button onclick="this.closest('div').parentElement.remove()" style="padding:15px 30px;font-size:16px;border:none;border-radius:10px;background:#ff6b9d;color:#fff;">✕ 关闭</button>
+                    </div>
+                    <p style="color:#888;margin-top:15px;font-size:12px;text-align:center;">iOS用户：长按视频可保存到相册</p>
                 `;
                 document.body.appendChild(modal);
+                
+                // 分享按钮点击事件
+                modal.querySelector('#shareVideoBtn').onclick = async () => {
+                    if (navigator.share) {
+                        try {
+                            const file = new File([blob], filename, { type: 'video/webm' });
+                            await navigator.share({ files: [file], title: '提词器录制' });
+                        } catch (e) {
+                            alert('分享取消或不支持');
+                        }
+                    } else {
+                        alert('当前浏览器不支持分享功能');
+                    }
+                };
             };
             
             isRecording = true;
