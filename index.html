@@ -533,6 +533,15 @@
         </div>
         
         <div class="control-group">
+            <label>📹 相机模式（边看词边录像）</label>
+            <div class="toggle-group">
+                <button class="toggle-btn active" data-camera="false">关闭</button>
+                <button class="toggle-btn" data-camera="true">开启</button>
+            </div>
+            <div class="feature-note">开启后文字会叠加在相机画面上，方便边看词边录像</div>
+        </div>
+        
+        <div class="control-group">
             <label>🪞 镜像模式（配合镜子使用）</label>
             <div class="toggle-group">
                 <button class="toggle-btn active" data-mirror="false">正常</button>
@@ -545,6 +554,9 @@
     
     <!-- 提词器界面 -->
     <div class="teleprompter" id="teleprompter">
+        <!-- 相机预览 -->
+        <video id="cameraPreview" autoplay playsinline muted style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1;"></video>
+        
         <!-- 进度条 -->
         <div class="progress-bar" id="progressBar" style="width: 0%"></div>
         
@@ -597,6 +609,8 @@
         let isMirrored = false;
         let animationId = null;
         let scrollMode = 'auto'; // 'auto' or 'voice'
+        let cameraEnabled = false;
+        let cameraStream = null;
         let currentTheme = 'classic';
         let startTime = null;
         let wakeLock = null;
@@ -976,6 +990,49 @@
             });
         });
         
+        // 相机选择
+        document.querySelectorAll('[data-camera]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-camera]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                cameraEnabled = btn.dataset.camera === 'true';
+            });
+        });
+        
+        // 相机控制函数
+        const cameraPreview = document.getElementById('cameraPreview');
+        
+        async function startCamera() {
+            if (!cameraEnabled) return;
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                cameraPreview.srcObject = cameraStream;
+                cameraPreview.style.display = 'block';
+                // 相机画面镜像（自拍模式）
+                cameraPreview.style.transform = 'scaleX(-1)';
+                // 文字半透明以便看清背景
+                textContent.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8), -2px -2px 4px rgba(0,0,0,0.8)';
+                teleprompter.style.background = 'transparent';
+            } catch (e) {
+                console.error('相机访问失败:', e);
+                alert('无法访问相机，请检查权限设置');
+            }
+        }
+        
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            cameraPreview.style.display = 'none';
+            cameraPreview.srcObject = null;
+            textContent.style.textShadow = '';
+            teleprompter.style.background = '';
+        }
+        
         // 开始
         document.getElementById('startBtn').addEventListener('click', async () => {
             const text = document.getElementById('scriptText').value.trim();
@@ -1041,6 +1098,11 @@
             
             settingsPanel.classList.add('hidden');
             teleprompter.classList.add('active');
+            
+            // 启动相机（如果开启）
+            if (cameraEnabled) {
+                startCamera();
+            }
             
             // 倒计时
             if (countdownSeconds > 0) {
@@ -1171,6 +1233,7 @@
             isPlaying = false;
             cancelAnimationFrame(animationId);
             stopVoiceRecognition();
+            stopCamera();
             teleprompter.classList.remove('active');
             settingsPanel.classList.remove('hidden');
         }
