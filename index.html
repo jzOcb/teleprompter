@@ -791,26 +791,31 @@
                 return;
             }
             
-            // 检查整个识别文本 - 模糊匹配（2-3字即可）
-            const lineStart = lineClean.slice(0, 6);
-            const prefix2 = lineStart.slice(0, 2);
-            const prefix3 = lineStart.slice(0, 3);
-            
-            debug(`🔍 检查行${targetLine}: 找"${prefix2}"或"${prefix3}"在"...${cleanTranscript.slice(-15)}"`);
-            
-            // 在整个识别文本中查找下一行开头（2-3字模糊匹配）
-            if (cleanTranscript.includes(prefix3)) {
-                debug(`✅ 匹配! "${prefix3}" 在识别文本中`);
-                lastMatchTime = now;
-                scrollToLine(targetLine);
-                return;
+            // 方法1: 检查当前行是否快说完（末尾3字出现在识别文本中）
+            const currentText = scriptLines[currentLineIndex] || '';
+            const currentClean = currentText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
+            if (currentClean.length >= 4) {
+                const currentEnd = currentClean.slice(-3);
+                if (cleanTranscript.includes(currentEnd)) {
+                    debug(`✅ 当前行快说完! "${currentEnd}" 在识别文本中，提前滚动`);
+                    lastMatchTime = now;
+                    scrollToLine(targetLine);
+                    return;
+                }
             }
             
-            if (cleanTranscript.includes(prefix2)) {
-                debug(`✅ 匹配! "${prefix2}" 在识别文本中`);
-                lastMatchTime = now;
-                scrollToLine(targetLine);
-                return;
+            // 方法2: 检查下一行的任意部分（不只是开头）
+            debug(`🔍 检查行${targetLine}的任意片段在"...${cleanTranscript.slice(-15)}"`);
+            
+            // 生成下一行的多个3字片段
+            for (let i = 0; i <= lineClean.length - 3; i++) {
+                const chunk = lineClean.slice(i, i + 3);
+                if (cleanTranscript.includes(chunk)) {
+                    debug(`✅ 匹配! "${chunk}" 在识别文本中`);
+                    lastMatchTime = now;
+                    scrollToLine(targetLine);
+                    return;
+                }
             }
             
             debug(`❌ 无匹配`);
