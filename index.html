@@ -1105,9 +1105,20 @@
                 canvasStream.addTrack(cameraStream.getAudioTracks()[0]);
             }
             
-            // 创建 MediaRecorder
+            // 创建 MediaRecorder - 选择兼容格式
             recordedChunks = [];
-            mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm;codecs=vp9' });
+            let mimeType = 'video/mp4';
+            if (MediaRecorder.isTypeSupported('video/mp4')) {
+                mimeType = 'video/mp4';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+                mimeType = 'video/webm;codecs=h264';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                mimeType = 'video/webm';
+            }
+            console.log('使用录制格式:', mimeType);
+            mediaRecorder = new MediaRecorder(canvasStream, { mimeType });
             
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) {
@@ -1116,12 +1127,14 @@
             };
             
             mediaRecorder.onstop = async () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const actualMimeType = mediaRecorder.mimeType || 'video/mp4';
+                const blob = new Blob(recordedChunks, { type: actualMimeType });
+                const ext = actualMimeType.includes('mp4') ? 'mp4' : 'webm';
                 
                 // 尝试使用 Web Share API（iOS 支持）
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'video.webm', { type: 'video/webm' })] })) {
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], `video.${ext}`, { type: actualMimeType })] })) {
                     try {
-                        const file = new File([blob], `teleprompter-${Date.now()}.webm`, { type: 'video/webm' });
+                        const file = new File([blob], `teleprompter-${Date.now()}.${ext}`, { type: actualMimeType });
                         await navigator.share({
                             files: [file],
                             title: '提词器录制',
@@ -1135,7 +1148,7 @@
                 
                 // 后备方案：显示视频预览 + 下载/分享按钮
                 const url = URL.createObjectURL(blob);
-                const filename = `teleprompter-${Date.now()}.webm`;
+                const filename = `teleprompter-${Date.now()}.${ext}`;
                 const modal = document.createElement('div');
                 modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
                 modal.innerHTML = `
@@ -1154,7 +1167,7 @@
                 modal.querySelector('#shareVideoBtn').onclick = async () => {
                     if (navigator.share) {
                         try {
-                            const file = new File([blob], filename, { type: 'video/webm' });
+                            const file = new File([blob], filename, { type: actualMimeType });
                             await navigator.share({ files: [file], title: '提词器录制' });
                         } catch (e) {
                             alert('分享取消或不支持');
