@@ -1002,8 +1002,14 @@
                 const firstP = textContent.querySelector('p');
                 if (firstP) {
                     firstP.classList.add('current');
-                    // 计算让第一行居中的位置
-                    scrollPosition = window.innerHeight / 2 - firstP.offsetTop - firstP.offsetHeight / 2;
+                    // 使用 getBoundingClientRect 计算居中位置
+                    scrollPosition = 0;
+                    updateTransform();
+                    
+                    const rect = firstP.getBoundingClientRect();
+                    const viewportCenter = window.innerHeight / 2;
+                    const targetCenter = rect.top + rect.height / 2;
+                    scrollPosition = viewportCenter - targetCenter;
                     updateTransform();
                 }
             }, 100);
@@ -1124,11 +1130,20 @@
                 if (i === 0) p.classList.add('current');
             });
             
-            // 重新计算第一行居中位置
+            // 重新计算第一行居中位置 - 使用 getBoundingClientRect
             const firstP = paragraphs[0];
             if (firstP) {
-                scrollPosition = window.innerHeight / 2 - firstP.offsetTop - firstP.offsetHeight / 2;
+                // 先重置到0，再计算需要的偏移
+                scrollPosition = 0;
                 updateTransform();
+                
+                const rect = firstP.getBoundingClientRect();
+                const viewportCenter = window.innerHeight / 2;
+                const targetCenter = rect.top + rect.height / 2;
+                scrollPosition = viewportCenter - targetCenter;
+                updateTransform();
+                
+                debug(`🔄 Reset: 第一行中心=${Math.round(targetCenter)}, 屏幕中心=${Math.round(viewportCenter)}, scrollPosition=${Math.round(scrollPosition)}`);
             }
         });
         
