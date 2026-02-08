@@ -791,32 +791,23 @@
                 return;
             }
             
-            // 方法1: 检查当前行是否说到一半以上（提前触发滚动）
+            // 方法1: 提前触发 - 检测倒数第6到第3个字（更早触发）
             const currentText = scriptLines[currentLineIndex] || '';
             const currentClean = currentText.replace(/[，。！？、,.\s\n·~！@#￥%……&*（）—+=\[\]{}|;:'",.<>/?·""'']/g, '');
             if (currentClean.length >= 6) {
-                // 检查末尾5字
-                const currentEnd5 = currentClean.slice(-5);
-                if (cleanTranscript.includes(currentEnd5)) {
-                    debug(`✅ 当前行快说完! "${currentEnd5}" 在识别文本中，提前滚动`);
+                // 检查倒数6-3位置的3个字（提前触发）
+                const earlyTrigger = currentClean.slice(-6, -3);
+                if (earlyTrigger.length === 3 && cleanTranscript.includes(earlyTrigger)) {
+                    debug(`✅ 提前触发! "${earlyTrigger}" 在识别文本中`);
                     lastMatchTime = now;
                     scrollToLine(targetLine);
                     return;
                 }
-                // 检查末尾3字
-                const currentEnd3 = currentClean.slice(-3);
-                if (cleanTranscript.includes(currentEnd3)) {
-                    debug(`✅ 当前行快说完! "${currentEnd3}" 在识别文本中，提前滚动`);
-                    lastMatchTime = now;
-                    scrollToLine(targetLine);
-                    return;
-                }
-                // 检查中间部分（50%位置往后的3字片段）
-                const midPoint = Math.floor(currentClean.length * 0.5);
-                for (let i = midPoint; i <= currentClean.length - 3; i++) {
-                    const chunk = currentClean.slice(i, i + 3);
-                    if (cleanTranscript.includes(chunk)) {
-                        debug(`✅ 当前行过半! "${chunk}" 在识别文本中，提前滚动`);
+                // 检查倒数9-6位置（更早）
+                if (currentClean.length >= 9) {
+                    const veryEarlyTrigger = currentClean.slice(-9, -6);
+                    if (veryEarlyTrigger.length === 3 && cleanTranscript.includes(veryEarlyTrigger)) {
+                        debug(`✅ 超前触发! "${veryEarlyTrigger}" 在识别文本中`);
                         lastMatchTime = now;
                         scrollToLine(targetLine);
                         return;
