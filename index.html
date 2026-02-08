@@ -759,9 +759,9 @@
             const now = Date.now();
             const timeSinceLast = now - lastMatchTime;
             
-            // 防抖：至少间隔2秒才能滚动
-            if (timeSinceLast < 2000) {
-                debug(`⏳ 防抖中 (${Math.round(timeSinceLast)}ms < 2000ms)`);
+            // 防抖：至少间隔0.8秒才能滚动（快语速友好）
+            if (timeSinceLast < 800) {
+                debug(`⏳ 防抖中 (${Math.round(timeSinceLast)}ms < 800ms)`);
                 return;
             }
             
