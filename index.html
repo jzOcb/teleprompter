@@ -1107,17 +1107,28 @@
             
             // 创建 MediaRecorder - 选择兼容格式
             recordedChunks = [];
-            let mimeType = 'video/mp4';
-            if (MediaRecorder.isTypeSupported('video/mp4')) {
-                mimeType = 'video/mp4';
-            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
-                mimeType = 'video/webm;codecs=h264';
-            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                mimeType = 'video/webm;codecs=vp9';
-            } else if (MediaRecorder.isTypeSupported('video/webm')) {
-                mimeType = 'video/webm';
+            // 检测支持的格式（优先 mp4）
+            const formats = [
+                'video/mp4;codecs=avc1',
+                'video/mp4',
+                'video/webm;codecs=h264',
+                'video/webm;codecs=vp8,opus',
+                'video/webm;codecs=vp9',
+                'video/webm'
+            ];
+            let mimeType = '';
+            for (const fmt of formats) {
+                if (MediaRecorder.isTypeSupported(fmt)) {
+                    mimeType = fmt;
+                    break;
+                }
             }
-            console.log('使用录制格式:', mimeType);
+            if (!mimeType) {
+                alert('你的浏览器不支持视频录制');
+                return;
+            }
+            const isWebm = mimeType.includes('webm');
+            console.log('使用录制格式:', mimeType, isWebm ? '(需要转换才能在iOS打开)' : '');
             mediaRecorder = new MediaRecorder(canvasStream, { mimeType });
             
             mediaRecorder.ondataavailable = (e) => {
@@ -1160,6 +1171,8 @@
                         <button onclick="this.closest('div').parentElement.remove()" style="padding:15px 30px;font-size:16px;border:none;border-radius:10px;background:#ff6b9d;color:#fff;">✕ 关闭</button>
                     </div>
                     <p style="color:#888;margin-top:15px;font-size:12px;text-align:center;">iOS用户：长按视频可保存到相册</p>
+                    ${ext === 'webm' ? '<p style="color:#ffcc00;margin-top:10px;font-size:12px;text-align:center;">⚠️ WebM格式iPhone无法直接播放<br>推荐用 <a href="https://cloudconvert.com/webm-to-mp4" target="_blank" style="color:#4CAF50;">CloudConvert</a> 转换为MP4</p>' : ''}
+                    ${ext === 'webm' ? '<p style="color:#888;margin-top:5px;font-size:11px;text-align:center;">💡 或使用Chrome浏览器录制可得到更好的兼容性</p>' : ''}
                 `;
                 document.body.appendChild(modal);
                 
