@@ -878,10 +878,10 @@
             speedAdjustBar.style.display = 'none';
             heardText.textContent = '启动中...点击允许麦克风';
             
-            // 调试面板已关闭（如需调试，取消下面注释）
-            // debugPanel.style.display = 'block';
-            // debugLines = [];
-            // debug(`🎤 语音识别启动, 当前行=${currentLineIndex}`);
+            // 临时开启调试
+            debugPanel.style.display = 'block';
+            debugLines = [];
+            debug(`🎤 语音识别启动, 当前行=${currentLineIndex}`);
             
             // 3秒后如果还没启动，显示提示
             const startTimeout = setTimeout(() => {
