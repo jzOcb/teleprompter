@@ -1115,14 +1115,34 @@
                 }
             };
             
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                
+                // 尝试使用 Web Share API（iOS 支持）
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'video.webm', { type: 'video/webm' })] })) {
+                    try {
+                        const file = new File([blob], `teleprompter-${Date.now()}.webm`, { type: 'video/webm' });
+                        await navigator.share({
+                            files: [file],
+                            title: '提词器录制',
+                            text: '我的提词器录制视频'
+                        });
+                        return;
+                    } catch (e) {
+                        console.log('分享取消或失败:', e);
+                    }
+                }
+                
+                // 后备方案：显示视频预览让用户手动保存
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `teleprompter-${Date.now()}.webm`;
-                a.click();
-                URL.revokeObjectURL(url);
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+                modal.innerHTML = `
+                    <p style="color:#fff;margin-bottom:10px;text-align:center;">🎬 录制完成！长按视频保存到相册</p>
+                    <video src="${url}" controls playsinline style="max-width:100%;max-height:60vh;border-radius:10px;"></video>
+                    <button onclick="this.parentElement.remove()" style="margin-top:20px;padding:15px 40px;font-size:18px;border:none;border-radius:10px;background:#ff6b9d;color:#fff;">关闭</button>
+                `;
+                document.body.appendChild(modal);
             };
             
             isRecording = true;
