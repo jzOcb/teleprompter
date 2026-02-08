@@ -797,28 +797,27 @@
             // 只匹配下一行开头的前6个字
             const lineStart = lineClean.slice(0, 6);
             
-            debug(`🔍 检查行${targetLine}: 开头="${lineStart}", 听到末尾="${recentText}"`);
+            debug(`🔍 检查行${targetLine}: 开头="${lineStart}", 听到="${recentText}"`);
             
-            // 必须5字以上精确匹配行开头
-            for (let len = 5; len <= Math.min(recentText.length, 6); len++) {
-                const searchStr = recentText.slice(-len);
-                const linePrefix = lineStart.slice(0, len);
-                
-                if (lineStart.startsWith(searchStr)) {
-                    debug(`✅ 匹配! "${searchStr}" 开头于 "${lineStart}"`);
-                    lastMatchTime = now;
-                    scrollToLine(targetLine);
-                    return;
-                }
-                if (linePrefix === searchStr) {
-                    debug(`✅ 匹配! "${searchStr}" = "${linePrefix}"`);
-                    lastMatchTime = now;
-                    scrollToLine(targetLine);
-                    return;
-                }
+            // 方法1: 行开头的前3-4个字出现在识别文本中
+            const prefix3 = lineStart.slice(0, 3);
+            const prefix4 = lineStart.slice(0, 4);
+            
+            if (recentText.includes(prefix4)) {
+                debug(`✅ 匹配! "${prefix4}" 出现在识别文本中`);
+                lastMatchTime = now;
+                scrollToLine(targetLine);
+                return;
             }
             
-            debug(`❌ 无匹配`);
+            if (recentText.includes(prefix3)) {
+                debug(`✅ 匹配! "${prefix3}" 出现在识别文本中`);
+                lastMatchTime = now;
+                scrollToLine(targetLine);
+                return;
+            }
+            
+            debug(`❌ 无匹配 (找不到 "${prefix3}" 或 "${prefix4}")`);
         }
         
         // 滚动到指定行
