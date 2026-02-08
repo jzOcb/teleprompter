@@ -557,6 +557,14 @@
         <!-- 相机预览 -->
         <video id="cameraPreview" autoplay playsinline muted style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1;"></video>
         
+        <!-- 录制用的 Canvas（隐藏）-->
+        <canvas id="recordCanvas" style="display:none;"></canvas>
+        
+        <!-- 录制指示器 -->
+        <div id="recordIndicator" style="display:none; position:fixed; top:20px; left:20px; background:red; color:white; padding:8px 16px; border-radius:20px; font-size:14px; z-index:100; animation: blink 1s infinite;">
+            🔴 录制中...
+        </div>
+        
         <!-- 进度条 -->
         <div class="progress-bar" id="progressBar" style="width: 0%"></div>
         
@@ -591,6 +599,7 @@
             </div>
             <button class="ctrl-btn play" id="playPauseBtn">⏸️</button>
             <button class="ctrl-btn" id="voiceBtn" style="display:none;">🎤</button>
+            <button class="ctrl-btn" id="recordBtn" style="display:none; background:#ff4444;">⏺</button>
             <button class="ctrl-btn" id="resetBtn">↺</button>
             <button class="ctrl-btn" id="exitBtn">✕</button>
         </div>
@@ -611,6 +620,11 @@
         let scrollMode = 'auto'; // 'auto' or 'voice'
         let cameraEnabled = false;
         let cameraStream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let canvasStream = null;
+        let recordingAnimationId = null;
         let currentTheme = 'classic';
         let startTime = null;
         let wakeLock = null;
@@ -1007,7 +1021,7 @@
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
+                    audio: true  // 需要音频用于录制
                 });
                 cameraPreview.srcObject = cameraStream;
                 cameraPreview.style.display = 'block';
@@ -1016,6 +1030,8 @@
                 // 文字半透明以便看清背景
                 textContent.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8), -2px -2px 4px rgba(0,0,0,0.8)';
                 teleprompter.style.background = 'transparent';
+                // 显示录制按钮
+                recordBtn.style.display = 'flex';
             } catch (e) {
                 console.error('相机访问失败:', e);
                 alert('无法访问相机，请检查权限设置');
@@ -1023,6 +1039,9 @@
         }
         
         function stopCamera() {
+            if (isRecording) {
+                stopRecording();
+            }
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
@@ -1031,7 +1050,106 @@
             cameraPreview.srcObject = null;
             textContent.style.textShadow = '';
             teleprompter.style.background = '';
+            recordBtn.style.display = 'none';
         }
+        
+        // 录制功能
+        const recordCanvas = document.getElementById('recordCanvas');
+        const recordCtx = recordCanvas.getContext('2d');
+        const recordBtn = document.getElementById('recordBtn');
+        const recordIndicator = document.getElementById('recordIndicator');
+        
+        function startRecording() {
+            if (!cameraStream || isRecording) return;
+            
+            // 设置 canvas 尺寸
+            recordCanvas.width = cameraPreview.videoWidth || 1280;
+            recordCanvas.height = cameraPreview.videoHeight || 720;
+            
+            // 开始绘制循环
+            function drawFrame() {
+                if (!isRecording) return;
+                
+                // 绘制视频帧（镜像）
+                recordCtx.save();
+                recordCtx.scale(-1, 1);
+                recordCtx.drawImage(cameraPreview, -recordCanvas.width, 0, recordCanvas.width, recordCanvas.height);
+                recordCtx.restore();
+                
+                // 绘制文字
+                const lines = textContent.querySelectorAll('p');
+                const centerY = recordCanvas.height * 0.35;
+                recordCtx.font = `bold ${fontSize * 1.5}px -apple-system, sans-serif`;
+                recordCtx.textAlign = 'center';
+                recordCtx.fillStyle = '#fff';
+                recordCtx.shadowColor = 'rgba(0,0,0,0.8)';
+                recordCtx.shadowBlur = 10;
+                
+                lines.forEach((line, i) => {
+                    if (line.classList.contains('current')) {
+                        recordCtx.fillStyle = '#ff6b9d';
+                        const lineY = centerY;
+                        recordCtx.fillText(line.textContent, recordCanvas.width / 2, lineY);
+                    }
+                });
+                
+                recordCtx.shadowBlur = 0;
+                recordingAnimationId = requestAnimationFrame(drawFrame);
+            }
+            
+            // 获取 canvas 流
+            canvasStream = recordCanvas.captureStream(30);
+            
+            // 添加音频轨道（如果有）
+            if (cameraStream.getAudioTracks().length > 0) {
+                canvasStream.addTrack(cameraStream.getAudioTracks()[0]);
+            }
+            
+            // 创建 MediaRecorder
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm;codecs=vp9' });
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `teleprompter-${Date.now()}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+            
+            isRecording = true;
+            mediaRecorder.start();
+            drawFrame();
+            recordBtn.textContent = '⏹';
+            recordBtn.style.background = '#44ff44';
+            recordIndicator.style.display = 'block';
+        }
+        
+        function stopRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+            cancelAnimationFrame(recordingAnimationId);
+            mediaRecorder.stop();
+            recordBtn.textContent = '⏺';
+            recordBtn.style.background = '#ff4444';
+            recordIndicator.style.display = 'none';
+        }
+        
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
         
         // 开始
         document.getElementById('startBtn').addEventListener('click', async () => {
@@ -1523,6 +1641,10 @@
                 20% { opacity: 1; transform: translateX(-50%) translateY(0); }
                 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
                 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            }
+            @keyframes blink {
+                0%, 50% { opacity: 1; }
+                51%, 100% { opacity: 0.5; }
             }
         `;
         document.head.appendChild(style);
