@@ -791,33 +791,29 @@
                 return;
             }
             
-            // 只用识别文本的最后10个字
-            const recentText = cleanTranscript.slice(-10);
-            
-            // 只匹配下一行开头的前6个字
+            // 检查整个识别文本（不只是末尾）
             const lineStart = lineClean.slice(0, 6);
-            
-            debug(`🔍 检查行${targetLine}: 开头="${lineStart}", 听到="${recentText}"`);
-            
-            // 方法1: 行开头的前3-4个字出现在识别文本中
             const prefix3 = lineStart.slice(0, 3);
             const prefix4 = lineStart.slice(0, 4);
             
-            if (recentText.includes(prefix4)) {
-                debug(`✅ 匹配! "${prefix4}" 出现在识别文本中`);
+            debug(`🔍 检查行${targetLine}: 找"${prefix3}"或"${prefix4}"在"${cleanTranscript.slice(-20)}..."`);
+            
+            // 在整个识别文本中查找下一行开头
+            if (cleanTranscript.includes(prefix4)) {
+                debug(`✅ 匹配! "${prefix4}" 在识别文本中`);
                 lastMatchTime = now;
                 scrollToLine(targetLine);
                 return;
             }
             
-            if (recentText.includes(prefix3)) {
-                debug(`✅ 匹配! "${prefix3}" 出现在识别文本中`);
+            if (cleanTranscript.includes(prefix3)) {
+                debug(`✅ 匹配! "${prefix3}" 在识别文本中`);
                 lastMatchTime = now;
                 scrollToLine(targetLine);
                 return;
             }
             
-            debug(`❌ 无匹配 (找不到 "${prefix3}" 或 "${prefix4}")`);
+            debug(`❌ 无匹配`);
         }
         
         // 滚动到指定行
