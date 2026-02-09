@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>📜 提词器 - 自媒体博主必备</title>
+    <title>📜 VoicePrompter - 语音跟踪提词器</title>
+    
+    <!-- Analytics (privacy-friendly) -->
+    <script defer data-domain="jzocb.github.io" src="https://plausible.io/js/script.js"></script>
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#ff6b9d">
@@ -1735,6 +1738,84 @@
                         console.log('ServiceWorker 注册失败:', error);
                     });
             });
+        }
+        
+        // 添加到主屏幕提示
+        let deferredPrompt;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const hasSeenPrompt = localStorage.getItem('a2hs_dismissed');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (!isStandalone && !hasSeenPrompt) {
+                showA2HSPrompt();
+            }
+        });
+        
+        function showA2HSPrompt() {
+            // 延迟3秒显示，让用户先体验
+            setTimeout(() => {
+                const prompt = document.createElement('div');
+                prompt.id = 'a2hs-prompt';
+                prompt.innerHTML = `
+                    <div style="position:fixed;bottom:20px;left:20px;right:20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:16px 20px;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:32px;">📱</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;margin-bottom:4px;">添加到主屏幕</div>
+                            <div style="font-size:13px;opacity:0.9;">像 App 一样使用，下次直接打开</div>
+                        </div>
+                        <button id="a2hs-install" style="background:#fff;color:#667eea;border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;">添加</button>
+                        <button id="a2hs-dismiss" style="background:transparent;color:#fff;border:none;padding:8px;cursor:pointer;opacity:0.7;">✕</button>
+                    </div>
+                `;
+                document.body.appendChild(prompt);
+                
+                document.getElementById('a2hs-install').onclick = async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log('A2HS outcome:', outcome);
+                        deferredPrompt = null;
+                    }
+                    prompt.remove();
+                };
+                
+                document.getElementById('a2hs-dismiss').onclick = () => {
+                    localStorage.setItem('a2hs_dismissed', 'true');
+                    prompt.remove();
+                };
+            }, 3000);
+        }
+        
+        // iOS Safari 特殊处理（不支持 beforeinstallprompt）
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        if (isIOS && isSafari && !isStandalone && !hasSeenPrompt) {
+            setTimeout(() => {
+                const prompt = document.createElement('div');
+                prompt.innerHTML = `
+                    <div style="position:fixed;bottom:20px;left:20px;right:20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:16px 20px;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.3);z-index:9999;">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                            <span style="font-size:32px;">📱</span>
+                            <div style="flex:1;">
+                                <div style="font-weight:600;margin-bottom:4px;">添加到主屏幕</div>
+                                <div style="font-size:13px;opacity:0.9;">像 App 一样使用</div>
+                            </div>
+                            <button id="ios-dismiss" style="background:transparent;color:#fff;border:none;padding:8px;cursor:pointer;opacity:0.7;">✕</button>
+                        </div>
+                        <div style="font-size:13px;background:rgba(255,255,255,0.15);padding:12px;border-radius:8px;">
+                            点击 Safari 底部的 <strong>分享按钮</strong> ↗️<br>
+                            然后选择 <strong>"添加到主屏幕"</strong>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(prompt);
+                document.getElementById('ios-dismiss').onclick = () => {
+                    localStorage.setItem('a2hs_dismissed', 'true');
+                    prompt.remove();
+                };
+            }, 5000);
         }
     </script>
 </body>
